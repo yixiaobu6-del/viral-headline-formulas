@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>爆款标题在线生成器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
+    <style>
+        .toast { animation: fadeIn 0.3s, fadeOut 0.3s 2.7s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+        .favorite-btn:hover { transform: scale(1.1); }
+        .star-rating i { cursor: pointer; transition: color 0.2s; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Toast提示 -->
+    <div id="toast" class="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg hidden z-50">
+        <i class="fa fa-check"></i> <span id="toastMsg">操作成功</span>
+    </div>
+
+    <div class="max-w-4xl mx-auto p-4">
+        <header class="text-center py-6">
+            <h1 class="text-3xl font-bold text-gray-800"><i class="fa fa-fire text-red-500"></i> 爆款标题在线生成器</h1>
+            <p class="text-gray-500 mt-2">选择公式、填入关键词，一键生成爆款标题</p>
+        </header>
+
+        <div class="grid md:grid-cols-3 gap-4 mb-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">选择公式类型</label>
+                <select id="category" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-red-500">
+                    <option value="数字型">数字型</option>
+                    <option value="对比型">对比型</option>
+                    <option value="悬念型">悬念型</option>
+                    <option value="痛点型">痛点型</option>
+                    <option value="情绪型">情绪型</option>
+                    <option value="反常识型">反常识型</option>
+                    <option value="权威背书型">权威背书型</option>
+                    <option value="故事叙事型">故事叙事型</option>
+                    <option value="利益承诺型">利益承诺型</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">目标平台</label>
+                <select id="platform" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-red-500">
+                    <option value="all">不限平台</option>
+                    <option value="公众号">公众号</option>
+                    <option value="小红书">小红书</option>
+                    <option value="知乎">知乎</option>
+                    <option value="抖音">抖音</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">关键词（选填）</label>
+                <input id="keyword" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-red-500" placeholder="如：写作、副业、职场">
+            </div>
+        </div>
+
+        <button onclick="generate()" class="w-full bg-red-500 text-white py-3 rounded-lg font-bold text-lg hover:bg-red-600 transition mb-4">
+            <i class="fa fa-magic"></i> 生成标题
+        </button>
+
+        <!-- 标签切换 -->
+        <div class="flex gap-2 mb-4 border-b pb-2">
+            <button onclick="showTab('results')" id="tabResults" class="px-4 py-2 rounded-t bg-red-500 text-white font-medium">
+                <i class="fa fa-list"></i> 生成结果
+            </button>
+            <button onclick="showTab('favorites')" id="tabFavorites" class="px-4 py-2 rounded-t bg-gray-200 text-gray-600 font-medium hover:bg-gray-300">
+                <i class="fa fa-heart"></i> 收藏夹
+            </button>
+            <button onclick="showTab('history')" id="tabHistory" class="px-4 py-2 rounded-t bg-gray-200 text-gray-600 font-medium hover:bg-gray-300">
+                <i class="fa fa-history"></i> 历史记录
+            </button>
+            <button onclick="showTab('report')" id="tabReport" class="px-4 py-2 rounded-t bg-gray-200 text-gray-600 font-medium hover:bg-gray-300">
+                <i class="fa fa-bar-chart"></i> 分析报告
+            </button>
+        </div>
+
+        <!-- 生成结果 -->
+        <div id="resultsPanel" class="space-y-3"></div>
+
+        <!-- 收藏夹 -->
+        <div id="favoritesPanel" class="hidden">
+            <div class="bg-white rounded-lg shadow p-4 mb-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-gray-700"><i class="fa fa-heart text-red-500"></i> 已收藏标题</h3>
+                    <button onclick="clearFavorites()" class="text-sm text-gray-400 hover:text-red-500">
+                        <i class="fa fa-trash"></i> 清空收藏
+                    </button>
+                </div>
+            </div>
+            <div id="favoritesList" class="space-y-3"></div>
+        </div>
+
+        <!-- 历史记录 -->
+        <div id="historyPanel" class="hidden">
+            <div class="bg-white rounded-lg shadow p-4 mb-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-gray-700"><i class="fa fa-history text-blue-500"></i> 生成历史</h3>
+                    <button onclick="clearHistory()" class="text-sm text-gray-400 hover:text-red-500">
+                        <i class="fa fa-trash"></i> 清空历史
+                    </button>
+                </div>
+            </div>
+            <div id="historyList" class="space-y-3"></div>
+        </div>
+
+        <!-- 统计信息 -->
+        <div id="statsPanel" class="mt-6 grid grid-cols-3 gap-4 hidden">
+            <div class="bg-white rounded-lg shadow p-4 text-center">
+                <div class="text-2xl font-bold text-blue-500" id="statTotal">0</div>
+                <div class="text-sm text-gray-500">总生成数</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4 text-center">
+                <div class="text-2xl font-bold text-red-500" id="statFavorites">0</div>
+                <div class="text-sm text-gray-500">收藏数</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4 text-center">
+                <div class="text-2xl font-bold text-green-500" id="statAvgRating">0</div>
+                <div class="text-sm text-gray-500">平均评分</div>
+            </div>
+        </div>
+
+        <!-- 统计分析报告（新增） -->
+        <div id="reportSection" class="mt-6 hidden">
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-gray-700"><i class="fa fa-bar-chart text-green-500"></i> 标题效果统计分析</h3>
+                    <div class="flex gap-2">
+                        <button onclick="generateReport()" class="text-sm bg-green-500 text-white px-3 py-1.5 rounded hover:bg-green-600"><i class="fa fa-refresh"></i> 刷新报告</button>
+                        <button onclick="exportReport()" class="text-sm bg-blue-500 text-white px-3 py-1.5 rounded hover:bg-blue-600"><i class="fa fa-download"></i> 导出报告</button>
+                    </div>
+                </div>
+                <div id="reportContent"></div>
+            </div>
+        </div>
+
+        <div class="mt-8 p-4 bg-blue-50 rounded-lg">
+            <h3 class="font-bold text-blue-800"><i class="fa fa-lightbulb-o"></i> 使用技巧</h3>
+            <ul class="mt-2 text-sm text-blue-700 space-y-1">
+                <li>输入关键词可让生成的标题更精准</li>
+                <li>选平台可筛选该平台已验证有效的公式</li>
+                <li>生成后可点击收藏按钮保存喜欢的标题</li>
+                <li>收藏后可评分标记，方便后续筛选</li>
+                <li>建议每个选题生成5-10个标题，对比测试</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+    const STORAGE_KEYS = {
+        favorites: 'title_generator_favorites',
+        history: 'title_generator_history',
+        stats: 'title_generator_stats'
+    };
+
+    const formulas = {
+        "数字型": [
+            "{数字}个{领域}必备{技能}", "只用{数字}分钟，搞定{痛点}", "{数字}%的人不知道的{秘密}",
+            "{数字}种{方法}解决{问题}", "从{数字}到{数字}，{变化}", "{数字}年经验总结：{观点}",
+            "{数字}天搞定{技能}", "月入{数字}的{人群}都在做什么", "读完{数字}本书后，我{感悟}",
+            "毕业{数字}年，{人群}之间的差距", "坚持{动作}{数字}天后，{变化}", "每天{数字}分钟，{效果}",
+            "我试了{数字}个{产品}，最后选了这款", "{数字}个{行业}真相，看完扎心了", "{数字}岁前必须知道的{数量}件事",
+            "累计{数字}小时，终于{成就}", "第{数字}次{尝试}，终于{结果}", "坚持{数字}{周期}，{变化惊人}"
+        ],
+        "对比型": [
+            "{A} vs {B}，哪个更{属性}", "{普通人} vs {高手}，差距在{点}", "以前{做法}，现在{做法}",
+            "为什么{甲方}比{乙方}更{特质}", "同样{条件}，{差距原因}", "{大公司}和{小公司}的{差别}",
+            "别人{做法}，我{做法}，结果{差异}", "{有钱人}和{普通人}的{区别}", "内行看{点}，外行看{点}",
+            "20岁{状态} vs 30岁{状态}", "努力{方向1} vs 努力{方向2}", "传统{做法} vs 新式{做法}",
+            "月薪{数字1} vs 月薪{数字2}的{差别}", "一线城市 vs 二线城市的{差异}"
+        ],
+        "悬念型": [
+            "{行业}里藏着{秘密}", "为什么{现象}？答案{意外}", "{人群}都在做{事}，你却不知道",
+            "揭秘{行业}{真相}", "关于{话题}，{数字}个你不知道的真相", "我发现了{领域}的秘密",
+            "{行业}内部人不会告诉你的{件事}", "当{条件}发生时，{意外结果}", "我偷偷观察了{数量}个{人群}，发现了{规律}",
+            "深夜{时间}，{意外发现}", "没人告诉你的{领域}潜规则", "看完这个，你{改变}",
+            "{现象}的背后，藏着{真相}", "为什么{大多数人}{行为}，而{少数人}{相反}"
+        ],
+        "痛点型": [
+            "还在{错误做法}？{正确做法}来了", "{痛点}怎么解决？{方案}", "告别{痛点}，{方案}帮你",
+            "如果你有{痛点}，一定要看", "为什么你{努力}却{没结果}", "你不是{问题}，而是{真正原因}",
+            "{错误认知}，害了多少{人群}", "想{目标}，先避开这{数字}个坑", "为什么我劝你不要{常见做法}",
+            "90%的人都{错误做法}，正确的是{做法}", "{痛点}困扰{数字}年，终于找到方法",
+            "别再{错误行为}了，真相是{真相}", "这{数字}个{痛点}信号，你要警惕"
+        ],
+        "情绪型": [
+            "终于{突破}了{障碍}", "{情绪}！{触发原因}", "哭死/笑死/气死，{原因}",
+            "后悔{行为}，{教训}", "说出来你可能不信，我{经历}", "我承认，我{弱点}",
+            "第{数字}次想放弃{事情}的时候，我{转折}", "我害怕{事物}，直到{转折}", "当我{情境}时，我才意识到{领悟}",
+            "看完这个视频，我{情绪}了", "没想到{意外事件}，让我{感悟}",
+            "真心建议{建议}，别像我一样{教训}", "那一刻，我{情绪}得{程度}"
+        ],
+        "反常识型": [
+            "你以为{常识}？其实{真相}", "别再{错误做法}了，{正确做法}", "{常识}是错的，{真相}才是对的",
+            "颠覆认知：{真相}", "研究发现：{颠覆性结论}", "为什么{常识}反而让你{负面结果}",
+            "{领域}最大的骗局：{错误认知}", "大多数人都不知道，{隐藏真相}",
+            "你以为{现象1}，其实{现象2}", "别被{错误观念}骗了",
+            "真相是：{真相}，而不是{错误认知}", "为什么{成功方法}反而{失败结果}"
+        ],
+        "权威背书型": [
+            "巴菲特/马斯克/雷军：{观点}", "{权威机构}报告：{数据发现}", "诺贝尔奖得主：{观点}",
+            "《{书名}》中的{数字}个核心观点", "斯坦福/哈佛/MIT 研究表明：{结论}", "{知名人物}的{习惯}，坚持了{年数}年",
+            "世界500强都在用的{方法}", "{数据}数据显示：{趋势}",
+            "{权威专家}推荐：{产品/方法}", "{顶级公司}内部培训的{内容}",
+            "被{数量}位{权威}推荐的{事物}"
+        ],
+        "故事叙事型": [
+            "那个{形容词}的{人群}，后来{结果}", "从{起点}到{终点}，我只做了{件事}",
+            "{数字}年前我{状态}，现在我{状态}", "一个{事物}改变了我的一生", "那年{年龄}岁，我做了人生最重要的决定",
+            "我采访了{数字}个{人群}，发现了一个共同点", "如果回到{时间}，我会告诉自己{忠告}",
+            "从{负面状态}到{正面状态}，我只改变了{件事}",
+            "3年前{状态}，今天{状态}，中间发生了什么", "我{数字}岁那年，{关键事件}",
+            "花了{数字}{周期}，终于{成就}"
+        ],
+        "利益承诺型": [
+            "学会{技能}，{收益}", "掌握{技能}，从此{好处}", "{方法}，让你的{方面}提升{数字}倍",
+            "做对{件事}，{好处}", "强烈推荐{事物}，{理由}", "不想{负面结果}，一定要{行动}",
+            "建议收藏：{主题合集}", "{时间}内快速{成果}的方法", "零基础也能{成果}，只要{条件}",
+            "只需{数字}步，就能{成果}", "每天{投入}，换来{回报}",
+            "一招搞定{痛点}，{额外好处}", "用这个方法，{成果}快{数字}倍"
+        ]
+    };
+
+    // 扩充填充词库到20个领域
+    const fillers = {
+        "领域": ["写作", "自媒体", "职场", "短视频", "学习", "创业", "个人IP", "副业", "效率", "时间管理", "理财", "健身", "摄影", "编程", "设计", "营销", "投资", "阅读", "演讲", "谈判"],
+        "技能": ["写作", "剪辑", "沟通", "管理", "编程", "英语", "时间管理", "理财", "摄影", "演讲", "PPT", "Excel", "AI工具", "数据分析", "项目管理", "销售技巧", "思维导图", "复盘总结", "知识管理", "人脉经营"],
+        "方法": ["方法", "技巧", "套路", "策略", "秘诀", "心法", "公式", "模板", "流程", "框架", "模式", "法则", "原则", "指南", "路线图", "清单", "SOP", "方法论", "实操步骤", "底层逻辑"],
+        "痛点": ["写作焦虑", "拖延症", "效率低", "收入少", "职场瓶颈", "学习困难", "流量差", "找不到方向", "没动力", "焦虑迷茫", "人际关系差", "沟通障碍", "执行力弱", "认知局限", "选择困难", "信息过载", "注意力涣散", "时间碎片化", "目标模糊", "反馈缺失"],
+        "问题": ["问题", "困惑", "难题", "困境", "瓶颈", "挑战", "痛点", "障碍", "卡点", "困扰", "危机", "误区", "陷阱", "雷区", "盲区", "短板", "漏洞", "风险", "隐患", "短板"],
+        "秘密": ["秘密", "真相", "潜规则", "内幕", "真相", "门道", "玄机", "套路", "逻辑", "原理", "规律", "底层逻辑", "隐藏规则", "关键因素", "核心方法", "秘密武器", "隐藏技巧", "业内秘密"],
+        "变化": ["变化", "转变", "逆袭", "翻身", "蜕变", "成长", "突破", "飞跃", "进化", "觉醒", "翻身", "逆袭", "飞跃", "蜕变", "翻盘", "崛起", "突破", "跃迁", "质变", "逆袭翻身"],
+        "感悟": ["明白了什么", "看透了什么", "悟出了什么", "总结出了什么", "找到了答案", "豁然开朗", "看清了真相", "有了新认知", "观念变了", "思维升级了", "格局打开了", "认知觉醒了", "方向明确了", "目标清晰了"],
+        "人群": ["程序员", "设计师", "产品经理", "运营", "自媒体", "自由职业", "教师", "销售", "创业者", "打工人", "中年人", "年轻人", "学生", "宝妈", "职场新人", "管理者", "投资人", "老板", "网红", "博主"],
+        "产品": ["APP", "软件", "工具", "课程", "书籍", "服务", "平台", "网站", "插件", "模板", "素材", "素材包", "教程", "方案", "解决方案", "产品", "设备", "神器", "黑科技", "效率工具"],
+        "行业": ["互联网", "金融", "教育", "医疗", "电商", "短视频", "自媒体", "AI", "区块链", "新能源", "房地产", "餐饮", "零售", "物流", "游戏", "影视", "广告", "咨询", "法律", "保险"],
+        "数字": ["3", "5", "7", "10", "20", "30", "50", "100", "500", "1000", "90%", "80%", "70%", "99%", "1%", "50%", "200%", "300%", "2倍", "5倍"],
+        "情绪": ["崩溃", "后悔", "开心", "感动", "焦虑", "惊喜", "震撼", "扎心", "暖心", "释然", "愤怒", "失望", "兴奋", "紧张", "期待", "满足", "骄傲", "羞愧", "困惑", "释怀"],
+        "平台": ["公众号", "小红书", "抖音", "知乎", "B站", "视频号", "快手", "头条", "微博", "豆瓣", "即刻", "脉脉", "飞书", "微信", "淘宝", "拼多多", "闲鱼", "知乎", "小红书"],
+        "属性": ["好用", "有效", "靠谱", "实用", "专业", "靠谱", "高效", "简单", "省钱", "省时", "方便", "全面", "深入", "系统", "专业", "权威", "有趣", "实用", "便宜", "高端"],
+        "做法": ["这样做", "用这个方法", "按这个步骤", "遵循这个原则", "用这个思路", "这样操作", "按这个流程", "用这个策略", "这样执行", "用这个技巧", "按这个模板", "用这个公式", "这样规划"],
+        "正确做法": ["正确做法来了", "试试这个方法", "这样做才对", "这才是正确思路", "这才是正确方法", "正确方式是这样的", "用这个方法才有效", "这样做才是正解"],
+        "错误做法": ["还在这样做", "千万别这样做", "很多人还在这样做", "90%的人都这样做", "你是不是也这样做", "很多人不知道这样做有问题"],
+        "真相": ["真相是这样", "真相是...", "其实是...", "原来是...", "本质是...", "核心是...", "关键是...", "根本原因是...", "底层逻辑是...", "真正的原因是..."],
+        "规律": ["规律", "共同点", "秘密", "真相", "特点", "特征", "模式", "规律", "定律", "法则", "共性", "套路", "底层逻辑", "核心规律", "隐藏规律"],
+        "权威机构": ["麦肯锡", "哈佛商学院", "斯坦福大学", "MIT", "清华北大", "中科院", "普华永道", "德勤", "埃森哲", "腾讯研究院", "阿里研究院", "字节跳动", "谷歌", "微软", "苹果"],
+        "知名人物": ["马斯克", "巴菲特", "马云", "雷军", "张一鸣", "王兴", "刘强东", "罗永浩", "李笑来", "樊登", "罗振宇", "吴晓波", "刘润", "薛兆丰", "李诞"],
+        "书名": ["原则", "穷查理宝典", "思考快与慢", "刻意练习", "深度工作", "原子习惯", "纳瓦尔宝典", "认知觉醒", "底层逻辑", "影响力", "富爸爸穷爸爸", "高效能人士的七个习惯", "复利思维"],
+        "习惯": ["早起", "读书", "写作", "运动", "冥想", "复盘", "时间管理", "深度思考", "学习", "健身", "阅读", "记录", "计划", "总结", "分享", "输出", "输入", "迭代", "优化"],
+        "成果": ["成功了", "搞定了", "解决了", "实现了", "达成了", "完成了", "做到了", "突破了", "超越了", "逆袭了", "翻盘了", "赢了", "成功了", "上岸了", "翻红了"],
+        "好处": ["收益翻倍", "效率提升", "收入增加", "时间节省", "压力减轻", "烦恼减少", "机会增多", "认知升级", "能力提升", "人脉拓宽", "资源增加", "思维升级", "格局打开"],
+        "负面结果": ["错过机会", "浪费时间", "后悔一生", "一事无成", "原地踏步", "越努力越穷", "走弯路", "踩坑", "吃亏", "被淘汰", "被边缘化", "失去竞争力"],
+        "时间": ["一个月", "三个月", "半年", "一年", "三年", "五年", "十年", "大学毕业", "30岁", "35岁", "40岁", "创业初期", "转型期"],
+        "投入": ["10分钟", "半小时", "1小时", "早起1小时", "睡前30分钟", "午休时间", "周末半天", "通勤时间", "碎片时间", "下班后2小时"],
+        "周期": ["天", "周", "月", "年", "小时", "分钟"],
+        "尝试": ["尝试", "实验", "测试", "探索", "研究", "实践", "复盘", "优化", "迭代", "调整"],
+        "成就": ["终于成功了", "找到了方法", "实现了目标", "达成了梦想", "突破了瓶颈", "解决了问题", "完成了任务", "拿到了结果", "获得了回报"],
+        "现象": ["努力没结果", "越忙越穷", "加班加不动", "学不会记不住", "做了没用", "付出了没回报", "努力了白费"],
+        "意外": ["意想不到", "出乎意料", "令人震惊", "让人意外", "颠覆认知", "打破常识", "超出预期", "令人惊讶", "匪夷所思", "难以置信"],
+        "变化惊人": ["变化惊人", "结果惊艳", "效果显著", "改变巨大", "蜕变明显", "成果惊人", "效果惊人", "变化巨大", "提升明显"]
+    };
+
+    let currentTab = 'results';
+    let favorites = [];
+    let history = [];
+    let stats = { total: 0, avgRating: 0 };
+
+    // 初始化
+    function init() {
+        loadFavorites();
+        loadHistory();
+        loadStats();
+        generate();
+    }
+
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        document.getElementById('toastMsg').textContent = msg;
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 3000);
+    }
+
+    function rand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+    function fillTemplate(tpl, keyword) {
+        return tpl.replace(/\{(\w+)\}/g, (match, key) => {
+            const pool = fillers[key] || [key];
+            const val = rand(pool);
+            return keyword && Math.random() > 0.5 ? keyword : val;
+        });
+    }
+
+    function generate() {
+        const cat = document.getElementById("category").value;
+        const keyword = document.getElementById("keyword").value.trim();
+        const list = formulas[cat] || [];
+
+        const count = Math.min(list.length, 10);
+        const shuffled = [...list].sort(() => Math.random() - 0.5);
+        const selected = shuffled.slice(0, count);
+
+        // 保存到历史
+        const timestamp = new Date().toLocaleString();
+        const historyEntry = {
+            id: Date.now(),
+            category: cat,
+            keyword: keyword,
+            titles: selected.map(tpl => fillTemplate(tpl, keyword)),
+            timestamp: timestamp
+        };
+        history.unshift(historyEntry);
+        if (history.length > 20) history.pop();
+        saveHistory();
+
+        // 更新统计
+        stats.total += count;
+        saveStats();
+
+        let html = `<div class="flex justify-between items-center mb-3">
+            <h2 class="text-lg font-bold text-gray-700"><i class="fa fa-list"></i> 生成了 ${count} 个标题</h2>
+            <button onclick="copyAll()" class="text-sm bg-gray-200 px-3 py-1 rounded hover:bg-gray-300 transition">
+                <i class="fa fa-copy"></i> 复制全部
+            </button>
+        </div>`;
+
+        selected.forEach((tpl, i) => {
+            const title = fillTemplate(tpl, keyword);
+            const isFav = favorites.some(f => f.title === title);
+            html += `<div class="bg-white p-4 rounded-lg shadow-sm border hover:shadow-md transition">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <span class="inline-block bg-red-100 text-red-600 text-xs px-2 py-0.5 rounded mr-2">${cat}</span>
+                        <span class="text-gray-800 font-medium">${title}</span>
+                    </div>
+                    <div class="flex gap-2 ml-2">
+                        <button onclick="copyText('${title.replace(/'/g, "\\'")}')"
+                            class="text-blue-500 hover:text-blue-700 transition px-2" title="复制">
+                            <i class="fa fa-copy"></i>
+                        </button>
+                        <button onclick="toggleFavorite('${title.replace(/'/g, "\\'")}', '${cat}')"
+                            class="favorite-btn ${isFav ? 'text-red-500' : 'text-gray-400'} hover:text-red-500 transition px-2" title="收藏">
+                            <i class="fa fa-heart"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        });
+
+        document.getElementById('resultsPanel').innerHTML = html;
+        showTab('results');
+        updateStatsDisplay();
+    }
+
+    function showTab(tab) {
+        currentTab = tab;
+        document.getElementById('resultsPanel').classList.toggle('hidden', tab !== 'results');
+        document.getElementById('favoritesPanel').classList.toggle('hidden', tab !== 'favorites');
+        document.getElementById('historyPanel').classList.toggle('hidden', tab !== 'history');
+        document.getElementById('statsPanel').classList.toggle('hidden', tab === 'results');
+        document.getElementById('reportSection').classList.toggle('hidden', tab !== 'report');
+
+        ['results', 'favorites', 'history', 'report'].forEach(t => {
+            const btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+            if (t === tab) {
+                btn.classList.remove('bg-gray-200', 'text-gray-600');
+                btn.classList.add('bg-red-500', 'text-white');
+            } else {
+                btn.classList.remove('bg-red-500', 'text-white');
+                btn.classList.add('bg-gray-200', 'text-gray-600');
+            }
+        });
+
+        if (tab === 'favorites') renderFavorites();
+        if (tab === 'history') renderHistory();
+        if (tab === 'report') generateReport();
+    }
+
+    function toggleFavorite(title, category) {
+        const existing = favorites.find(f => f.title === title);
+        if (existing) {
+            favorites = favorites.filter(f => f.title !== title);
+            showToast('已取消收藏');
+        } else {
+            favorites.push({
+                id: Date.now(),
+                title: title,
+                category: category,
+                rating: 0,
+                timestamp: new Date().toLocaleString()
+            });
+            showToast('已添加收藏');
+        }
+        saveFavorites();
+        updateStatsDisplay();
+        generate(); // 刷新显示
+    }
+
+    function setRating(id, rating) {
+        const fav = favorites.find(f => f.id === id);
+        if (fav) {
+            fav.rating = rating;
+            saveFavorites();
+            updateStatsDisplay();
+            renderFavorites();
+        }
+    }
+
+    function renderFavorites() {
+        const list = document.getElementById('favoritesList');
+        if (favorites.length === 0) {
+            list.innerHTML = `<div class="text-center py-8 text-gray-400">
+                <i class="fa fa-heart-o fa-2x mb-2"></i>
+                <p>暂无收藏，点击生成结果中的心形图标收藏标题</p>
+            </div>`;
+            return;
+        }
+
+        // 按评分排序
+        const sorted = [...favorites].sort((a, b) => b.rating - a.rating);
+
+        list.innerHTML = sorted.map(f => `
+            <div class="bg-white p-4 rounded-lg shadow-sm border">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex-1">
+                        <span class="inline-block bg-red-100 text-red-600 text-xs px-2 py-0.5 rounded mr-2">${f.category}</span>
+                        <span class="text-gray-800 font-medium">${f.title}</span>
+                    </div>
+                    <button onclick="removeFavorite(${f.id})" class="text-gray-400 hover:text-red-500 ml-2">
+                        <i class="fa fa-times"></i>
+                    </button>
+                </div>
+                <div class="flex justify-between items-center">
+                    <div class="star-rating text-sm">
+                        ${[1,2,3,4,5].map(s => `<i class="fa fa-star ${s <= f.rating ? 'text-yellow-500' : 'text-gray-300'}"
+                            onclick="setRating(${f.id}, ${s})"></i>`).join('')}
+                        <span class="ml-1 text-gray-500">${f.rating > 0 ? f.rating + '星' : '未评分'}</span>
+                    </div>
+                    <span class="text-xs text-gray-400">${f.timestamp}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function removeFavorite(id) {
+        favorites = favorites.filter(f => f.id !== id);
+        saveFavorites();
+        updateStatsDisplay();
+        renderFavorites();
+        showToast('已移除收藏');
+    }
+
+    function clearFavorites() {
+        if (confirm('确定要清空所有收藏吗？')) {
+            favorites = [];
+            saveFavorites();
+            updateStatsDisplay();
+            renderFavorites();
+            showToast('已清空收藏');
+        }
+    }
+
+    function renderHistory() {
+        const list = document.getElementById('historyList');
+        if (history.length === 0) {
+            list.innerHTML = `<div class="text-center py-8 text-gray-400">
+                <i class="fa fa-history fa-2x mb-2"></i>
+                <p>暂无历史记录</p>
+            </div>`;
+            return;
+        }
+
+        list.innerHTML = history.map(h => `
+            <div class="bg-white p-4 rounded-lg shadow-sm border">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-medium text-gray-700">
+                        <i class="fa fa-tag text-red-500"></i> ${h.category}
+                        ${h.keyword ? `<span class="text-gray-400 ml-2">关键词: ${h.keyword}</span>` : ''}
+                    </span>
+                    <span class="text-xs text-gray-400">${h.timestamp}</span>
+                </div>
+                <div class="space-y-1">
+                    ${h.titles.slice(0, 3).map(t => `
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-600">${t}</span>
+                            <button onclick="copyText('${t.replace(/'/g, "\\'")}')"
+                                class="text-blue-500 hover:text-blue-700">
+                                <i class="fa fa-copy"></i>
+                            </button>
+                        </div>
+                    `).join('')}
+                    ${h.titles.length > 3 ? `<button onclick="showHistoryDetail(${h.id})" class="text-sm text-blue-500 hover:text-blue-700">
+                        <i class="fa fa-angle-down"></i> 展开${h.titles.length - 3}条更多
+                    </button>` : ''}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function showHistoryDetail(id) {
+        const entry = history.find(h => h.id === id);
+        if (!entry) return;
+
+        // 显示全部标题的弹窗
+        const titles = entry.titles.join('\n');
+        copyText(titles);
+    }
+
+    function clearHistory() {
+        if (confirm('确定要清空所有历史记录吗？')) {
+            history = [];
+            saveHistory();
+            renderHistory();
+            showToast('已清空历史');
+        }
+    }
+
+    function copyText(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => showToast('已复制')).catch(() => fallbackCopy(text));
+        } else {
+            fallbackCopy(text);
+        }
+    }
+
+    function fallbackCopy(text) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showToast('已复制');
+    }
+
+    function copyAll() {
+        const items = document.querySelectorAll("#resultsPanel .text-gray-800.font-medium");
+        const texts = Array.from(items).map(el => el.textContent).join("\n");
+        copyText(texts);
+    }
+
+    // LocalStorage 操作
+    function saveFavorites() {
+        localStorage.setItem(STORAGE_KEYS.favorites, JSON.stringify(favorites));
+    }
+
+    function loadFavorites() {
+        const saved = localStorage.getItem(STORAGE_KEYS.favorites);
+        if (saved) favorites = JSON.parse(saved);
+    }
+
+    function saveHistory() {
+        localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(history));
+    }
+
+    function loadHistory() {
+        const saved = localStorage.getItem(STORAGE_KEYS.history);
+        if (saved) history = JSON.parse(saved);
+    }
+
+    function saveStats() {
+        localStorage.setItem(STORAGE_KEYS.stats, JSON.stringify(stats));
+    }
+
+    function loadStats() {
+        const saved = localStorage.getItem(STORAGE_KEYS.stats);
+        if (saved) stats = JSON.parse(saved);
+    }
+
+    function updateStatsDisplay() {
+        document.getElementById('statTotal').textContent = stats.total;
+        document.getElementById('statFavorites').textContent = favorites.length;
+        const rated = favorites.filter(f => f.rating > 0);
+        const avg = rated.length > 0 ? (rated.reduce((s, f) => s + f.rating, 0) / rated.length).toFixed(1) : 0;
+        document.getElementById('statAvgRating').textContent = avg;
+    }
+
+    function generateReport() {
+        var reportSection = document.getElementById('reportSection');
+        reportSection.classList.remove('hidden');
+
+        var catCounts = {};
+        favorites.forEach(function(f) { catCounts[f.category] = (catCounts[f.category] || 0) + 1; });
+        var ratedFavs = favorites.filter(function(f) { return f.rating > 0; });
+        var avgRating = ratedFavs.length > 0 ? (ratedFavs.reduce(function(s, f) { return s + f.rating; }, 0) / ratedFavs.length).toFixed(2) : '无评分数据';
+
+        var topRated = favorites.filter(function(f) { return f.rating > 0; }).sort(function(a, b) { return b.rating - a.rating; }).slice(0, 5);
+        var topCategories = Object.entries(catCounts).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 5);
+
+        var reportContent = document.getElementById('reportContent');
+        reportContent.innerHTML =
+            '<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">' +
+                '<div class="bg-blue-50 rounded p-3 text-center"><div class="text-xl font-bold text-blue-600">' + stats.total + '</div><div class="text-xs text-blue-500">总生成数</div></div>' +
+                '<div class="bg-red-50 rounded p-3 text-center"><div class="text-xl font-bold text-red-600">' + favorites.length + '</div><div class="text-xs text-red-500">收藏数</div></div>' +
+                '<div class="bg-green-50 rounded p-3 text-center"><div class="text-xl font-bold text-green-600">' + avgRating + '</div><div class="text-xs text-green-500">平均评分</div></div>' +
+                '<div class="bg-purple-50 rounded p-3 text-center"><div class="text-xl font-bold text-purple-600">' + Object.keys(catCounts).length + '</div><div class="text-xs text-purple-500">公式类型数</div></div>' +
+            '</div>' +
+            '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">' +
+                '<div class="bg-gray-50 rounded p-4"><h4 class="font-bold text-sm text-gray-700 mb-2"><i class="fa fa-star text-amber-500 mr-1"></i>高评分标题 TOP5</h4>' +
+                    (topRated.length > 0 ? '<ul class="text-xs text-gray-600 space-y-2">' + topRated.map(function(f) { return '<li><span class="text-amber-500 font-bold">' + f.rating + '</span> ' + f.title.slice(0, 30) + '...' + '</li>'; }).join('') + '</ul>' : '<div class="text-gray-400 text-xs">暂无评分数据</div>') +
+                '</div>' +
+                '<div class="bg-gray-50 rounded p-4"><h4 class="font-bold text-sm text-gray-700 mb-2"><i class="fa fa-chart-bar text-blue-500 mr-1"></i>常用公式 TOP5</h4>' +
+                    (topCategories.length > 0 ? '<ul class="text-xs text-gray-600 space-y-2">' + topCategories.map(function(c) { return '<li><span class="bg-red-100 text-red-600 px-2 py-0.5 rounded">' + c[1] + '</span> ' + c[0] + '</li>'; }).join('') + '</ul>' : '<div class="text-gray-400 text-xs">暂无收藏数据</div>') +
+                '</div>' +
+            '</div>' +
+            '<div class="mt-4 p-4 bg-amber-50 rounded border border-amber-200">' +
+                '<h4 class="font-bold text-sm text-amber-700 mb-2"><i class="fa fa-lightbulb-o mr-1"></i>优化建议</h4>' +
+                '<ul class="text-xs text-amber-600 space-y-1">' +
+                    (avgRating === '无评分数据' ? '<li>请为收藏的标题打分，以便生成更精准的分析报告</li>' : '') +
+                    (topRated.length > 0 && avgRating < 3.5 ? '<li>收藏标题整体评分偏低，建议尝试其他公式类型</li>' : '') +
+                    (topCategories.length > 0 && topCategories[0][1] > 5 ? '<li>高度依赖单一公式，建议拓展更多公式类型</li>' : '') +
+                    '<li>建议每个选题生成5-10个标题进行A/B测试</li>' +
+                    '<li>高评分标题值得复盘，分析其共性特征</li>' +
+                '</ul>' +
+            '</div>';
+    }
+
+    function exportReport() {
+        var md = '# 爆款标题效果统计报告\n\n';
+        md += '> 报告生成时间：' + new Date().toLocaleString() + '\n\n';
+        md += '## 基础统计\n\n';
+        md += '| 指标 | 数值 |\n|------|------|\n';
+        md += '| 总生成数 | ' + stats.total + ' |\n';
+        md += '| 收藏数 | ' + favorites.length + ' |\n';
+        var ratedFavs = favorites.filter(function(f) { return f.rating > 0; });
+        var avgRating = ratedFavs.length > 0 ? (ratedFavs.reduce(function(s, f) { return s + f.rating; }, 0) / ratedFavs.length).toFixed(2) : '无';
+        md += '| 平均评分 | ' + avgRating + ' |\n\n';
+
+        md += '## 高评分标题 TOP5\n\n';
+        var topRated = favorites.filter(function(f) { return f.rating > 0; }).sort(function(a, b) { return b.rating - a.rating; }).slice(0, 5);
+        if (topRated.length > 0) {
+            topRated.forEach(function(f) { md += '- [' + f.rating + '星] ' + f.title + '\n'; });
+        } else {
+            md += '暂无评分数据\n';
+        }
+        md += '\n## 公式使用分布\n\n';
+
+        var catCounts = {};
+        favorites.forEach(function(f) { catCounts[f.category] = (catCounts[f.category] || 0) + 1; });
+        Object.entries(catCounts).sort(function(a, b) { return b[1] - a[1]; }).forEach(function(c) {
+            md += '- ' + c[0] + '：' + c[1] + '次\n';
+        });
+
+        md += '\n---\n\n*由爆款标题公式库自动生成*';
+
+        var blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = '标题效果分析报告_' + new Date().toISOString().slice(0, 10) + '.md';
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('报告已导出');
+    }
+
+    // 页面加载时初始化
+    init();
+    </script>
+</body>
+</html>
